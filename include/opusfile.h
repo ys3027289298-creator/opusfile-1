@@ -1689,6 +1689,33 @@ int op_raw_seek(OggOpusFile *_of,opus_int64 _byte_offset) OP_ARG_NONNULL(1);
                          seeking to the target destination was impossible.*/
 int op_pcm_seek(OggOpusFile *_of,ogg_int64_t _pcm_offset) OP_ARG_NONNULL(1);
 
+/**Seek to the specified time, in seconds, such that decoding will begin at
+    exactly the corresponding sample.
+   This is a convenience wrapper around op_pcm_seek() that converts the time
+    to a PCM offset at 48 kHz, rounded to the nearest sample, so the
+    quantization error is bounded by half a sample (about 10.4 microseconds).
+   In a chained stream the time is relative to the start of the whole stream,
+    so this seeks across link boundaries as needed.
+   A time that falls exactly on a link boundary positions the stream at the
+    first sample of the following link, never at the tail of the previous
+    link.
+   \param _of   The \c OggOpusFile in which to seek.
+   \param _time The time to seek to, in seconds.
+                This must identify an actual sample in the stream, i.e., it
+                 must be between 0 and
+                 (#op_pcm_total(\a _of,\c -1)-1)/48000.0 (inclusive).
+                Times that round to a position at or past the end of the
+                 stream are rejected.
+   \return 0 on success, or a negative value on error.
+   \retval #OP_EREAD    An underlying read or seek operation failed.
+   \retval #OP_EINVAL   The stream was only partially open, or the target was
+                         outside the valid range for the stream.
+   \retval #OP_ENOSEEK  This stream is not seekable.
+   \retval #OP_EBADLINK We failed to find data we had seen before, or the
+                         bitstream structure was sufficiently malformed that
+                         seeking to the target destination was impossible.*/
+int op_pcm_seek_time(OggOpusFile *_of,double _time) OP_ARG_NONNULL(1);
+
 /**@}*/
 /**@}*/
 

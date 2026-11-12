@@ -450,6 +450,195 @@ int main(int _argc,const char **_argv){
     fprintf(stderr,"\rTotal seek operations: %li (%.3f per exact seek, %li maximum).\n",
      nreal_seeks,nreal_seeks/(double)NSEEK_TESTS,max_seeks);
     nreal_seeks=0;
+    /*Verify time-based seeking across links against a direct decode of the
+       whole stream.*/
+    fprintf(stderr,"Verifying time-based seeking across links against a "
+     "direct decode...\n");
+    {
+      op_sample   *ref;
+      op_sample    buffer[120*48*8];
+      ogg_int64_t *link_base;
+      ogg_int64_t  buf_pos;
+      ogg_int64_t  tell;
+      double       max_err;
+      double       max_time;
+      int          ret2;
+      ref=(op_sample *)malloc(sizeof(*ref)*(nsamples>0?nsamples:1));
+      link_base=(ogg_int64_t *)malloc(sizeof(*link_base)*nlinks);
+      if(ref==NULL||link_base==NULL){
+        fprintf(stderr,"Failed to allocate reference buffer.\n");
+        nfailures++;
+      }
+      else{
+        /*Decode the whole stream straight through as the reference.*/
+        ret=op_pcm_seek(of,0);
+        if(ret<0){
+          fprintf(stderr,"\nFailed to rewind for reference decode: %i\n",ret);
+          nfailures++;
+        }
+        buf_pos=0;
+        while(ret>=0){
+          int nch;
+          ret2=op_read_native(of,buffer,
+           (int)(sizeof(buffer)/sizeof(*buffer)),&li);
+          if(ret2<0){
+            fprintf(stderr,"\nReference decode failed: %i\n",ret2);
+            nfailures++;
+            break;
+          }
+          if(ret2==0)break;
+          nch=op_channel_count(of,li);
+          memcpy(ref+buf_pos,buffer,sizeof(*ref)*ret2*nch);
+          buf_pos+=ret2*nch;
+        }
+        if(buf_pos!=nsamples){
+          fprintf(stderr,"\nReference decode got %li samples, expected "
+           "%li.\n",(long)buf_pos,(long)nsamples);
+          nfailures++;
+        }
+        /*Enumerate the links and record where each one starts.*/
+        fprintf(stderr,"Enumerating %i links:\n",nlinks);
+        {
+          ogg_int64_t pcm_base;
+          pcm_base=0;
+          for(li=0;li<nlinks;li++){
+            link_base[li]=pcm_base;
+            fprintf(stderr,"  link %i: start %li (%.6fs), duration %li "
+             "(%.6fs), %i channel(s)\n",li,(long)pcm_base,pcm_base/48000.0,
+             (long)op_pcm_total(of,li),op_pcm_total(of,li)/48000.0,
+             op_channel_count(of,li));
+            pcm_base+=op_pcm_total(of,li);
+          }
+        }
+        /*Seek by time to several offsets inside every link, including the
+           exact link boundary, and compare the decoded data with the
+           reference.*/
+        max_err=0;
+        {
+          ogg_int64_t pcm_base;
+          ogg_int64_t buf_base;
+          pcm_base=0;
+          buf_base=0;
+          for(li=0;li<nlinks;li++){
+            ogg_int64_t duration;
+            int         nch;
+            int         ti;
+            duration=op_pcm_total(of,li);
+            nch=op_channel_count(of,li);
+            for(ti=0;ti<4;ti++){
+              ogg_int64_t off;
+              ogg_int64_t target;
+              ogg_int64_t want;
+              double      t;
+              switch(ti){
+                /*The exact link boundary: must land on the first sample of
+                   this link, never on the tail of the previous one.*/
+                case 0:off=0;break;
+                case 1:off=duration>2?1:0;break;
+                case 2:off=duration/2;break;
+                default:off=duration-1;break;
+              }
+              target=pcm_base+off;
+              t=target/48000.0;
+              ret=op_pcm_seek_time(of,t);
+              if(ret<0){
+                fprintf(stderr,"\nop_pcm_seek_time(%.6f) failed: %i\n",t,ret);
+                nfailures++;
+                continue;
+              }
+              /*The position must be sample-accurate: the rounding error of
+                 the time conversion is bounded by half a sample.*/
+              want=(ogg_int64_t)(t*48000+0.5);
+              tell=op_pcm_tell(of);
+              if(tell!=want){
+                fprintf(stderr,"\nTime seek not sample-accurate: requested "
+                 "%li, got %li.\n",(long)want,(long)tell);
+                nfailures++;
+              }
+              {
+                ogg_int64_t remain;
+                int         want_n;
+                int         li2;
+                remain=duration-off;
+                want_n=(int)OP_MIN(remain,(ogg_int64_t)4800);
+                ret2=op_read_native(of,buffer,want_n*nch,&li2);
+                if(ret2<=0){
+                  fprintf(stderr,"\nFailed to read after time seek: %i\n",
+                   ret2);
+                  nfailures++;
+                }
+                else{
+                  ogg_int64_t base;
+                  int         k;
+                  if(li2!=li){
+                    fprintf(stderr,"\nTime seek to link %i returned data "
+                     "from link %i (previous link tail?).\n",li,li2);
+                    nfailures++;
+                  }
+                  base=buf_base+off*nch;
+                  for(k=0;k<ret2*nch;k++){
+                    double err;
+                    err=(double)buffer[k]-(double)ref[base+k];
+                    if(err<0)err=-err;
+                    if(err>max_err)max_err=err;
+                    if(!MATCH(buffer[k],ref[base+k])){
+                      fprintf(stderr,"\nTime seek data mismatch at link %i "
+                       "offset %li: %G\n",li,(long)(off+k/nch),
+                       (double)buffer[k]-(double)ref[base+k]);
+                      nfailures++;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+            pcm_base+=duration;
+            buf_base+=duration*nch;
+          }
+        }
+        /*Seeking to the last sample of the stream by time must work.*/
+        ret=op_pcm_seek_time(of,(pcm_length-1)/48000.0);
+        if(ret<0){
+          fprintf(stderr,"\nSeek to last sample by time failed: %i\n",ret);
+          nfailures++;
+        }
+        else{
+          tell=op_pcm_tell(of);
+          if(tell!=pcm_length-1){
+            fprintf(stderr,"\nSeek to last sample landed at %li, expected "
+             "%li.\n",(long)tell,(long)(pcm_length-1));
+            nfailures++;
+          }
+          ret2=op_read_native(of,buffer,8,&li);
+          if(ret2!=1||li!=nlinks-1){
+            fprintf(stderr,"\nRead at last sample returned %i samples from "
+             "link %i.\n",ret2,li);
+            nfailures++;
+          }
+        }
+        /*Times at or past the exact end of the stream must be rejected with
+           OP_EINVAL.*/
+        max_time=pcm_length/48000.0;
+        if(op_pcm_seek_time(of,max_time)!=OP_EINVAL){
+          fprintf(stderr,"\nTime exactly at end of stream was not "
+           "rejected.\n");
+          nfailures++;
+        }
+        /*Out-of-range times must be rejected with OP_EINVAL.*/
+        if(op_pcm_seek_time(of,-0.5)!=OP_EINVAL){
+          fprintf(stderr,"\nNegative time was not rejected.\n");
+          nfailures++;
+        }
+        if(op_pcm_seek_time(of,max_time+1.0)!=OP_EINVAL){
+          fprintf(stderr,"\nTime past end of stream was not rejected.\n");
+          nfailures++;
+        }
+        fprintf(stderr,"Max time-seek error vs direct decode: %G "
+         "(tolerance %G).\n",max_err,(double)MATCH_TOL);
+        free(ref);
+        free(link_base);
+      }
+    }
     fprintf(stderr,"OK.\n");
     _ogg_free(bigassbuffer);
   }

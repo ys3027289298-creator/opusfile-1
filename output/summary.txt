@@ -1,0 +1,6 @@
+  link 0: start 0 (0.000000s), duration 57600 (1.200000s), 1 channel(s)
+  link 1: start 57600 (1.200000s), duration 57600 (1.200000s), 1 channel(s)
+  link 2: start 115200 (2.400000s), duration 57600 (1.200000s), 1 channel(s)
+Max time-seek error vs direct decode: 355 (tolerance 16384).
+OK.
+seeking_example exit status: 0

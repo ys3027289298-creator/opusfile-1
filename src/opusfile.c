@@ -2694,6 +2694,26 @@ int op_pcm_seek(OggOpusFile *_of,ogg_int64_t _pcm_offset){
   return 0;
 }
 
+int op_pcm_seek_time(OggOpusFile *_of,double _time){
+  ogg_int64_t pcm_length;
+  ogg_int64_t pcm_offset;
+  double      max_time;
+  if(OP_UNLIKELY(_of->ready_state<OP_OPENED))return OP_EINVAL;
+  if(OP_UNLIKELY(!_of->seekable))return OP_ENOSEEK;
+  pcm_length=op_pcm_total(_of,-1);
+  if(OP_UNLIKELY(pcm_length<0))return OP_EINVAL;
+  max_time=pcm_length/48000.0;
+  /*Reject NaN, negative times, and times past the end of the stream.*/
+  if(OP_UNLIKELY(!(_time>=0))||OP_UNLIKELY(_time>max_time))return OP_EINVAL;
+  /*Round to the nearest sample, so the quantization error is bounded by half
+     a sample.*/
+  pcm_offset=(ogg_int64_t)(_time*48000+0.5);
+  /*There is no sample at the very end of the stream to seek to, so reject
+     times that round to a position at or past it.*/
+  if(OP_UNLIKELY(pcm_offset>=pcm_length))return OP_EINVAL;
+  return op_pcm_seek(_of,pcm_offset);
+}
+
 opus_int64 op_raw_tell(const OggOpusFile *_of){
   if(OP_UNLIKELY(_of->ready_state<OP_OPENED))return OP_EINVAL;
   return _of->offset;
