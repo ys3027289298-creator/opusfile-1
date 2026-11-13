@@ -1,0 +1,12 @@
+{"version":3,"term":{"cols":100,"rows":30},"timestamp":1794545285,"command":"/home/ys/feedback/uidreczz28Z0d8oVWtL/output/seg/seg2.sh","title":"Segment 2 - Materials","env":{"SHELL":"/bin/bash"}}
+[0.013, "o", "\r\n\u001b[1;36m============================================================\r\n  Segment 2/4: Generate tiny materials and inspect embedded tags\r\n============================================================\u001b[0m\r\n"]
+[1.503, "o", "$ ./output/make_materials.sh\r\n"]
+[3.128, "o", "$ ls -l output/materials   (each file ~1.2 KB)\r\n"]
+[0.003, "o", "total 24\r\n-rw-r--r-- 1 ys ys  896 Nov 13 12:43 edge_good.opus\r\n-rw-r--r-- 1 ys ys 1012 Nov 13 12:43 edge_tags.opus\r\n-rw-r--r-- 1 ys ys 1252 Nov 13 12:48 invalid_tags.opus\r\n-rw-r--r-- 1 ys ys 1138 Nov 13 12:48 no_tags.opus\r\n-rw-r--r-- 1 ys ys 1253 Nov 13 12:48 valid_tags.opus\r\n-rw-r--r-- 1 ys ys 1161 Nov 13 12:48 with_gain_head.opus\r\n"]
+[1.503, "o", "$ python3 output/oggdump.py materials/valid_tags.opus\r\n"]
+[1.522, "o", "serial 2343644705 OpusHead ch 1 preskip 312 orig_sr 48000 output_gain_q8 0\r\nserial 2343644705 vendor: Lavf61.1.100 ntags: 5\r\n   encoder=Lavc61.3.100 libopus\r\n   R128_TRACK_GAIN=512\r\n"]
+[0.000, "o", "   R128_ALBUM_GAIN=-256\r\n   REPLAYGAIN_TRACK_PEAK=1.234567\r\n   REPLAYGAIN_ALBUM_PEAK=0.987654\r\n"]
+[0.000, "o", "  suffix bytes: 0\r\n"]
+[1.505, "o", "$ python3 output/oggdump.py materials/with_gain_head.opus (header gain = 768 q8)\r\n"]
+[1.516, "o", "serial 4278440541 OpusHead ch 1 preskip 312 orig_sr 48000 output_gain_q8 768\r\nserial 4278440541 vendor: Lavf61.1.100 ntags: 2\r\n   encoder=Lavc61.3.100 libopus\r\n   R128_TRACK_GAIN=512\r\n  suffix bytes: 0\r\n"]
+[1.507, "x", "0"]

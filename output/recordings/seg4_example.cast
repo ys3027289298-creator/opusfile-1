@@ -1,0 +1,12 @@
+{"version":3,"term":{"cols":100,"rows":30},"timestamp":1794545307,"command":"/home/ys/feedback/uidreczz28Z0d8oVWtL/output/seg/seg4.sh","title":"Segment 4 - Example","env":{"SHELL":"/bin/bash"}}
+[0.014, "o", "\r\n\u001b[1;36m============================================================\r\n  Segment 4/4: Bundled example, loudness dump and --no-gain identity\r\n"]
+[0.000, "o", "============================================================\u001b[0m\r\n"]
+[1.504, "o", "$ opusfile_example materials/valid_tags.opus   (stderr metadata)\r\n"]
+[1.509, "o", "Gain adjustment: enabled\r\n  R128_TRACK_GAIN=512\r\n  R128_ALBUM_GAIN=-256\r\n  Loudness fields: 0xf\r\n  R128 track gain: 512 q8 (2.000 dB)\r\n  R128 album gain: -256 q8 (-1.000 dB)\r\n  ReplayGain track peak: 1.234567 (1.830 dBFS)\r\n"]
+[0.000, "o", "  ReplayGain album peak: 0.987654 (-0.108 dBFS)\r\n"]
+[1.503, "o", "$ opusfile_example --no-gain with_gain_head.opus twice -> byte-identical\r\n"]
+[1.511, "o", "cmp: identical (zero difference)\r\n"]
+[1.501, "o", "$ default (gain on) vs --no-gain -> must differ\r\n"]
+[0.005, "o", "cmp: outputs differ as expected\r\n"]
+[1.503, "o", "\r\n\u001b[1;36m============================================================\r\n  All segments finished\r\n============================================================\u001b[0m\r\n"]
+[0.000, "x", "0"]

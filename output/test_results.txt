@@ -1,0 +1,28 @@
+[1] valid loudness tags round-trip: /home/ys/feedback/uidreczz28Z0d8oVWtL/output/materials/valid_tags.opus
+  PASS: parser returns success even while filling the struct
+  PASS: all four fields are flagged present
+  PASS: track gain q8 equals written 512 (2.000 dB)
+  PASS: album gain q8 equals written -256 (-1.000 dB)
+  PASS: track peak equals written 1.234567 (linear full scale)
+  PASS: album peak equals written 0.987654 (linear full scale)
+[2] missing tags yield an empty structure, not an error: /home/ys/feedback/uidreczz28Z0d8oVWtL/output/materials/no_tags.opus
+  PASS: missing tags still return success
+  PASS: fields mask is zero
+  PASS: gain values are zeroed
+  PASS: peak values are zeroed
+[3] invalid values are ignored, valid ones still parse: /home/ys/feedback/uidreczz28Z0d8oVWtL/output/materials/invalid_tags.opus
+  PASS: invalid tags do not cause an error
+  PASS: non-numeric R128_TRACK_GAIN ignored
+  PASS: valid R128_ALBUM_GAIN=300 still parsed
+  PASS: non-numeric track peak ignored
+  PASS: negative album peak ignored
+[4] gain disabled -> samples identical across two runs and to a
+    zero-header-gain decode; enabled output differs: /home/ys/feedback/uidreczz28Z0d8oVWtL/output/materials/with_gain_head.opus
+  PASS: all runs decoded the same length
+  PASS: gain off: two runs are sample-for-sample identical (zero diff)
+  PASS: gain on changes the samples (768 q8 header + 512 q8 tag)
+  PASS: applied scale matches dB->linear unit conversion
+  PASS: track-gain decode produced the same sample count
+  PASS: R128 track gain scale matches dB->linear unit conversion
+
+RESULT: all checks passed

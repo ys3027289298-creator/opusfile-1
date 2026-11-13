@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <math.h>
 #include <string.h>
 #include <opusfile.h>
 #if defined(_WIN32)
@@ -138,11 +139,18 @@ int main(int _argc,const char **_argv){
   int           ret;
   int           is_ssl;
   int           output_seekable;
+  int           apply_gain;
 #if defined(_WIN32)
   win32_utf8_setup(&_argc,&_argv);
 #endif
+  apply_gain=1;
+  if(_argc==3&&strcmp(_argv[1],"--no-gain")==0){
+    apply_gain=0;
+    _argv++;
+    _argc--;
+  }
   if(_argc!=2){
-    fprintf(stderr,"Usage: %s <file.opus>\n",_argv[0]);
+    fprintf(stderr,"Usage: %s [--no-gain] <file.opus>\n",_argv[0]);
     return EXIT_FAILURE;
   }
   is_ssl=0;
@@ -202,6 +210,12 @@ int main(int _argc,const char **_argv){
     fprintf(stderr,"Failed to open file '%s': %i\n",_argv[1],ret);
     return EXIT_FAILURE;
   }
+  if(!apply_gain){
+    op_set_gain_enabled(of,0);
+    fprintf(stderr,"Output gain adjustment disabled.\n");
+  }
+  fprintf(stderr,"Gain adjustment: %s\n",
+   op_get_gain_enabled(of)?"enabled":"disabled");
   duration=0;
   output_seekable=fseek(stdout,0,SEEK_CUR)!=-1;
   if(op_seekable(of)){
@@ -316,6 +330,30 @@ int main(int _argc,const char **_argv){
         if(opus_tags_get_binary_suffix(tags,&binary_suffix_len)!=NULL){
           fprintf(stderr,"<%u bytes of unknown binary metadata>\n",
            binary_suffix_len);
+        }
+        {
+          OpusLoudness loudness;
+          opus_tags_get_loudness(tags,&loudness);
+          fprintf(stderr,"  Loudness fields: 0x%x\n",loudness.fields);
+          if(loudness.fields&OP_LOUDNESS_TRACK_GAIN){
+            fprintf(stderr,"  R128 track gain: %i q8 (%.3f dB)\n",
+             loudness.track_gain_q8,loudness.track_gain_q8/256.0);
+          }
+          if(loudness.fields&OP_LOUDNESS_ALBUM_GAIN){
+            fprintf(stderr,"  R128 album gain: %i q8 (%.3f dB)\n",
+             loudness.album_gain_q8,loudness.album_gain_q8/256.0);
+          }
+          if(loudness.fields&OP_LOUDNESS_TRACK_PEAK){
+            fprintf(stderr,"  ReplayGain track peak: %.6f (%.3f dBFS)\n",
+             loudness.track_peak,20.0*log10(loudness.track_peak));
+          }
+          if(loudness.fields&OP_LOUDNESS_ALBUM_PEAK){
+            fprintf(stderr,"  ReplayGain album peak: %.6f (%.3f dBFS)\n",
+             loudness.album_peak,20.0*log10(loudness.album_peak));
+          }
+          if(loudness.fields==0){
+            fprintf(stderr,"  Loudness: (none)\n");
+          }
         }
         fprintf(stderr,"\n");
         if(!op_seekable(of)){

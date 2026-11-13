@@ -1,0 +1,10 @@
+{"version":3,"term":{"cols":100,"rows":30},"timestamp":1794545275,"command":"/home/ys/feedback/uidreczz28Z0d8oVWtL/output/seg/seg1.sh","title":"Segment 1 - Build","env":{"SHELL":"/bin/bash"}}
+[0.021, "o", "\r\n\u001b[1;36m============================================================\r\n  Segment 1/4: Build via the repository CMake entry\r\n============================================================\u001b[0m\r\n"]
+[1.509, "o", "$ cmake -S . -B output/build -DOP_DISABLE_HTTP=ON -DOP_DISABLE_DOCS=ON\r\n"]
+[1.823, "o", "--   Found opus, version 1.4\r\n-- Configuring done (0.3s)\r\n-- Generating done (0.0s)\r\n-- Build files have been written to: /home/ys/feedback/uidreczz28Z0d8oVWtL/output/build\r\n"]
+[1.507, "o", "$ cmake --build output/build -j\r\n"]
+[1.668, "o", "[ 41%] Built target opusfile\r\n[ 66%] Built target opusurl\r\n[100%] Built target opusfile_example\r\n[100%] Built target seeking_example\r\n"]
+[1.503, "o", "Build artifacts:\r\n"]
+[0.003, "o", "/home/ys/feedback/uidreczz28Z0d8oVWtL/output/build/libopusfile.a\r\n"]
+[0.000, "o", "/home/ys/feedback/uidreczz28Z0d8oVWtL/output/build/opusfile_example\r\n"]
+[1.508, "x", "0"]

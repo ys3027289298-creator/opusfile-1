@@ -1,0 +1,18 @@
+Output gain adjustment disabled.
+Gain adjustment: disabled
+Total number of links: 1
+Total duration: 0.300s (14400 samples @ 48 kHz)
+Total size: 1.13k
+Decoding link 0:                          
+  Channels: 1
+  Duration: 0.300s (14400 samples @ 48 kHz)
+  Size: 1.13k
+  Original sampling rate: 48000 Hz
+  Encoded by: Lavf61.1.100
+  encoder=Lavc61.3.100 libopus
+  R128_TRACK_GAIN=512
+  Loudness fields: 0x1
+  R128 track gain: 512 q8 (2.000 dB)
+
+ 1.13k  0s  (35.6 kbps)                    
+Done: played 0.300s (14400 samples @ 48 kHz).

@@ -310,6 +310,56 @@ struct OpusTags{
   char  *vendor;
 };
 
+/**\name Loudness metadata field flags
+
+   These flags indicate which fields of an #OpusLoudness structure were
+    actually present in the tags.
+   They are bit flags, and may be combined via bitwise OR.*/
+/**@{*/
+
+/**The R128_TRACK_GAIN field was present.*/
+#define OP_LOUDNESS_TRACK_GAIN (1<<0)
+/**The R128_ALBUM_GAIN field was present.*/
+#define OP_LOUDNESS_ALBUM_GAIN (1<<1)
+/**The REPLAYGAIN_TRACK_PEAK field was present.*/
+#define OP_LOUDNESS_TRACK_PEAK (1<<2)
+/**The REPLAYGAIN_ALBUM_PEAK field was present.*/
+#define OP_LOUDNESS_ALBUM_PEAK (1<<3)
+
+/**@}*/
+
+/**Loudness (R128/ReplayGain) metadata parsed from the comment header.
+
+   The gains are stored exactly as written in the R128_*_GAIN tags, i.e. as
+    signed 16-bit values in units of 1/256th of a dB (Q8 dB), relative to the
+    R128 reference of -23 LUFS.
+   The peaks are stored exactly as written in the REPLAYGAIN_*_PEAK tags, as
+    a unitless linear scale relative to full scale (1.0 == 0 dBFS).
+   Any field that was missing or whose value could not be parsed is simply
+    left unset, and the corresponding bit in the #fields mask is cleared.
+   A file without any loudness tags therefore yields an all-zero structure
+    with a #fields mask of 0, rather than an error.*/
+struct OpusLoudness{
+  /**A bitmask of the OP_LOUDNESS_* flags describing which of the fields
+     below contain valid values.*/
+  unsigned int fields;
+  /**The R128 track gain, in 1/256ths of a dB (Q8 dB).
+     Only valid when #OP_LOUDNESS_TRACK_GAIN is set in #fields.*/
+  int          track_gain_q8;
+  /**The R128 album gain, in 1/256ths of a dB (Q8 dB).
+     Only valid when #OP_LOUDNESS_ALBUM_GAIN is set in #fields.*/
+  int          album_gain_q8;
+  /**The ReplayGain track peak, as a linear full-scale amplitude.
+     Only valid when #OP_LOUDNESS_TRACK_PEAK is set in #fields.*/
+  double       track_peak;
+  /**The ReplayGain album peak, as a linear full-scale amplitude.
+     Only valid when #OP_LOUDNESS_ALBUM_PEAK is set in #fields.*/
+  double       album_peak;
+};
+
+/**Loudness metadata parsed from the comment header.*/
+typedef struct OpusLoudness OpusLoudness;
+
 /**\name Picture tag image formats*/
 /**@{*/
 
@@ -591,6 +641,27 @@ int opus_tags_get_album_gain(const OpusTags *_tags,int *_gain_q8)
    \retval #OP_FALSE There was no track gain available in the given tags.*/
 int opus_tags_get_track_gain(const OpusTags *_tags,int *_gain_q8)
  OP_ARG_NONNULL(1) OP_ARG_NONNULL(2);
+
+/**Parse all the loudness metadata from the given tags into one structure.
+   This collects the R128_TRACK_GAIN and R128_ALBUM_GAIN gains (kept in their
+    native units of 1/256ths of a dB) and the REPLAYGAIN_TRACK_PEAK and
+    REPLAYGAIN_ALBUM_PEAK peaks (kept as a linear, unitless full-scale
+    amplitude, where 1.0 is 0 dBFS).
+   Gains must be signed, 16-bit decimal integers; any other value is ignored,
+    as are peak values that are not finite, non-negative decimal numbers.
+   Missing or invalid fields are simply omitted: the corresponding bit in the
+    <tt>fields</tt> mask is left clear, instead of producing an error.
+   Thus a file with no loudness tags returns an all-zero structure and a
+    success code.
+   \param      _tags      An initialized #OpusTags structure.
+   \param[out] _loudness  On success, filled with the parsed loudness
+                           metadata.
+                           Fields without a valid tag are set to zero and have
+                            no corresponding flag in <tt>fields</tt>.
+   \return 0 on success, or a negative value on error.
+           A complete absence of loudness tags is still a success.*/
+int opus_tags_get_loudness(const OpusTags *_tags,
+ OpusLoudness *_loudness) OP_ARG_NONNULL(1) OP_ARG_NONNULL(2);
 
 /**Clears the #OpusTags structure.
    This should be called on an #OpusTags structure after it is no longer
@@ -1838,6 +1909,30 @@ void op_set_decode_callback(OggOpusFile *_of,
    \retval #OP_EINVAL The \a _gain_type was unrecognized.*/
 int op_set_gain_offset(OggOpusFile *_of,
  int _gain_type,opus_int32 _gain_offset_q8) OP_ARG_NONNULL(1);
+
+/**Enables or disables all output gain adjustment.
+   Gain adjustment is enabled by default, in which case the library applies
+    the header gain, and any R128 track or album gain selected with
+    op_set_gain_offset(), to the decoded output.
+   When disabled, the decoder is forced to a gain of 0 dB, so the samples
+    returned by op_read(), op_read_float(), and their stereo variants are
+    exactly the raw decoder output, independent of any gain stored in the
+    file.
+   Disabling gain does not change the gain type or offset configured with
+    op_set_gain_offset(); re-enabling gain restores those settings.
+   \note As with op_set_gain_offset(), the change does not affect any output
+    that was already decoded and buffered.
+   \param _of      The \c OggOpusFile on which to enable or disable gain.
+   \param _enabled Non-zero to apply the configured gain, zero to decode
+                    without any gain adjustment.
+   \return 0 on success or a negative value on error.*/
+int op_set_gain_enabled(OggOpusFile *_of,int _enabled) OP_ARG_NONNULL(1);
+
+/**Reports whether or not output gain adjustment is enabled.
+   \param _of The \c OggOpusFile to query.
+   \return Non-zero if gain adjustment is enabled (the default), or zero if
+            the decoded samples are returned without any gain applied.*/
+int op_get_gain_enabled(OggOpusFile *_of) OP_ARG_NONNULL(1);
 
 /**Sets whether or not dithering is enabled for 16-bit decoding.
    By default, when <tt>libopusfile</tt> is compiled to use floating-point

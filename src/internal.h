@@ -236,6 +236,10 @@ struct OggOpusFile{
   int                gain_type;
   /*The offset to apply to the gain.*/
   opus_int32         gain_offset_q8;
+  /*Whether or not to apply any gain at all to the decoded output.
+    When zero, the decoder is forced to a gain of 0 dB, and the samples
+     returned to the application are the raw decoder output.*/
+  int                gain_enabled;
   /*Internal state for soft clipping and dithering float->short output.*/
 #if !defined(OP_FIXED_POINT)
 # if defined(OP_SOFT_CLIP)

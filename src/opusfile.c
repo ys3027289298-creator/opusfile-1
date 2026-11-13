@@ -1315,6 +1315,17 @@ static void op_update_gain(OggOpusFile *_of){
   /*If decode isn't ready, then we'll apply the gain when we initialize the
      decoder.*/
   if(_of->ready_state<OP_INITSET)return;
+  if(!_of->gain_enabled){
+    /*The application asked for the raw decoder output: force 0 dB so that
+       neither the header gain nor any R128 gain is applied.*/
+    OP_ASSERT(_of->od!=NULL);
+#if defined(OPUS_SET_GAIN)
+    opus_multistream_decoder_ctl(_of->od,OPUS_SET_GAIN(0));
+#else
+# error "libopus 1.0.1 or later required"
+#endif
+    return;
+  }
   gain_q8=_of->gain_offset_q8;
   li=_of->seekable?_of->cur_link:0;
   head=&_of->links[li].head;
@@ -1520,6 +1531,8 @@ static int op_open1(OggOpusFile *_of,
   memset(_of,0,sizeof(*_of));
   if(OP_UNLIKELY(_initial_bytes>(size_t)LONG_MAX))return OP_EFAULT;
   _of->end=-1;
+  /*Gain adjustment is on by default; memset() above left this at 0.*/
+  _of->gain_enabled=1;
   _of->stream=_stream;
   _of->callbacks=*_cb;
   /*At a minimum, we need to be able to read data.*/
@@ -2765,6 +2778,20 @@ int op_set_gain_offset(OggOpusFile *_of,
   _of->gain_offset_q8=OP_CLAMP(-98302,_gain_offset_q8,98303);
   op_update_gain(_of);
   return 0;
+}
+
+int op_set_gain_enabled(OggOpusFile *_of,int _enabled){
+  int enabled;
+  enabled=_enabled!=0;
+  if(_of->gain_enabled!=enabled){
+    _of->gain_enabled=enabled;
+    op_update_gain(_of);
+  }
+  return 0;
+}
+
+int op_get_gain_enabled(OggOpusFile *_of){
+  return _of->gain_enabled;
 }
 
 void op_set_dither_enabled(OggOpusFile *_of,int _enabled){

@@ -1,0 +1,23 @@
+Gain adjustment: enabled
+Total number of links: 1
+Total duration: 0.300s (14400 samples @ 48 kHz)
+Total size: 1.22k
+Decoding link 0:                          
+  Channels: 1
+  Duration: 0.300s (14400 samples @ 48 kHz)
+  Size: 1.22k
+  Original sampling rate: 48000 Hz
+  Encoded by: Lavf61.1.100
+  encoder=Lavc61.3.100 libopus
+  R128_TRACK_GAIN=512
+  R128_ALBUM_GAIN=-256
+  REPLAYGAIN_TRACK_PEAK=1.234567
+  REPLAYGAIN_ALBUM_PEAK=0.987654
+  Loudness fields: 0xf
+  R128 track gain: 512 q8 (2.000 dB)
+  R128 album gain: -256 q8 (-1.000 dB)
+  ReplayGain track peak: 1.234567 (1.830 dBFS)
+  ReplayGain album peak: 0.987654 (-0.108 dBFS)
+
+ 1.22k  0s  (35.6 kbps)                    
+Done: played 0.300s (14400 samples @ 48 kHz).

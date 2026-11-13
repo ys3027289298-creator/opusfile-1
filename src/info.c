@@ -15,6 +15,7 @@
 
 #include "internal.h"
 #include <limits.h>
+#include <math.h>
 #include <string.h>
 
 static unsigned op_parse_uint16le(const unsigned char *_data){
@@ -459,6 +460,104 @@ int opus_tags_get_album_gain(const OpusTags *_tags,int *_gain_q8){
 
 int opus_tags_get_track_gain(const OpusTags *_tags,int *_gain_q8){
   return opus_tags_get_gain(_tags,_gain_q8,"R128_TRACK_GAIN",15);
+}
+
+/*Parses _str as a decimal peak amplitude (a non-negative, finite double).
+  Returns 1 on success and stores the value in *_peak, or 0 if the string is
+   not a valid, finite, non-negative number.
+  No leading/trailing whitespace is accepted: the whole string must be the
+   number, matching the strict handling of the gain tags.*/
+static int op_parse_peak(const char *_str,double *_peak){
+  const char *p;
+  int         saw_digit;
+  int         integer_digits;
+  double      value;
+  p=_str;
+  saw_digit=0;
+  integer_digits=0;
+  value=0.0;
+  while(*p>='0'&&*p<='9'){
+    /*Reject absurdly long integer parts before they saturate to a still
+       "finite" double (e.g. hundreds of digits).
+      A physical peak amplitude never needs more than a handful of integer
+       digits; 16 already allows values up to 1e16.*/
+    if(++integer_digits>16)return 0;
+    value=10.0*value+(*p-'0');
+    saw_digit=1;
+    p++;
+  }
+  if(*p=='.'){
+    double scale;
+    p++;
+    scale=1.0;
+    while(*p>='0'&&*p<='9'){
+      scale*=0.1;
+      value+=(*p-'0')*scale;
+      saw_digit=1;
+      p++;
+    }
+  }
+  /*Optional exponent, e.g. "1e-3".*/
+  if(saw_digit&&(*p=='e'||*p=='E')){
+    char *end;
+    value=strtod(_str,&end);
+    if(*end!='\0'||!isfinite(value)||value<0.0)return 0;
+    *_peak=value;
+    return 1;
+  }
+  if(!saw_digit||*p!='\0'||!isfinite(value)||value<0.0)return 0;
+  *_peak=value;
+  return 1;
+}
+
+int opus_tags_get_loudness(const OpusTags *_tags,OpusLoudness *_loudness){
+  char **comments;
+  int    ncomments;
+  int    ci;
+  _loudness->fields=0;
+  _loudness->track_gain_q8=0;
+  _loudness->album_gain_q8=0;
+  _loudness->track_peak=0.0;
+  _loudness->album_peak=0.0;
+  comments=_tags->user_comments;
+  ncomments=_tags->comments;
+  for(ci=0;ci<ncomments;ci++){
+    const char *comment;
+    comment=comments[ci];
+    if(opus_tagncompare("R128_TRACK_GAIN",15,comment)==0
+     &&(_loudness->fields&OP_LOUDNESS_TRACK_GAIN)==0){
+      int gain_q8;
+      if(opus_tags_get_gain(_tags,&gain_q8,"R128_TRACK_GAIN",15)==0){
+        _loudness->track_gain_q8=gain_q8;
+        _loudness->fields|=OP_LOUDNESS_TRACK_GAIN;
+      }
+    }
+    else if(opus_tagncompare("R128_ALBUM_GAIN",15,comment)==0
+     &&(_loudness->fields&OP_LOUDNESS_ALBUM_GAIN)==0){
+      int gain_q8;
+      if(opus_tags_get_gain(_tags,&gain_q8,"R128_ALBUM_GAIN",15)==0){
+        _loudness->album_gain_q8=gain_q8;
+        _loudness->fields|=OP_LOUDNESS_ALBUM_GAIN;
+      }
+    }
+    else if(opus_tagncompare("REPLAYGAIN_TRACK_PEAK",21,comment)==0
+     &&(_loudness->fields&OP_LOUDNESS_TRACK_PEAK)==0){
+      double peak;
+      if(op_parse_peak(comment+22,&peak)){
+        _loudness->track_peak=peak;
+        _loudness->fields|=OP_LOUDNESS_TRACK_PEAK;
+      }
+    }
+    else if(opus_tagncompare("REPLAYGAIN_ALBUM_PEAK",21,comment)==0
+     &&(_loudness->fields&OP_LOUDNESS_ALBUM_PEAK)==0){
+      double peak;
+      if(op_parse_peak(comment+22,&peak)){
+        _loudness->album_peak=peak;
+        _loudness->fields|=OP_LOUDNESS_ALBUM_PEAK;
+      }
+    }
+  }
+  return 0;
 }
 
 static int op_is_jpeg(const unsigned char *_buf,size_t _buf_sz){
