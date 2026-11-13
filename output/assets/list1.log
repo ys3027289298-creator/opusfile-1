@@ -1,0 +1,4 @@
+  encoder=Lavc61.3.100 libopus
+  TITLE=Round Trip
+  ARTIST=opusfile
+  METADATA_BLOCK_PICTURE: type=3 mime="image/png" description="" 32x32x24 colors=0 data=120 bytes [PNG]

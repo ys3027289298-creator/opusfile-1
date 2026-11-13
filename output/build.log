@@ -1,0 +1,20 @@
+make: Entering directory '/home/ys/feedback/uidreczz28Z0d8oUJJr/unix'
+mkdir -p objs/
+cc -MM -I../include `pkg-config --cflags ogg opus` -g -DOP_ENABLE_ASSERTIONS -fPIC -std=c89 -pedantic -Wextra -Wno-parentheses -Wno-long-long -Wall ../src/info.c -MT objs/info.o > objs/info.d
+cc -MM -I../include `pkg-config --cflags ogg opus` -g -DOP_ENABLE_ASSERTIONS -fPIC -std=c89 -pedantic -Wextra -Wno-parentheses -Wno-long-long -Wall ../src/info.c -MT objs/info.s >> objs/info.d
+cc -MM -I../include `pkg-config --cflags ogg opus` -g -DOP_ENABLE_ASSERTIONS -fPIC -std=c89 -pedantic -Wextra -Wno-parentheses -Wno-long-long -Wall ../src/info.c -MT objs/info.d >> objs/info.d
+mkdir -p objs/
+cc -I../include `pkg-config --cflags ogg opus` -g -DOP_ENABLE_ASSERTIONS -fPIC -std=c89 -pedantic -Wextra -Wno-parentheses -Wno-long-long -Wall -c -o objs/info.o ../src/info.c
+mkdir -p .
+ar cqs libopusfile.a objs/http.o objs/info.o objs/internal.o objs/opusfile.o objs/stream.o objs/tagwrite.o
+ranlib libopusfile.a
+mkdir -p .
+cc -g -DOP_ENABLE_ASSERTIONS -fPIC -std=c89 -pedantic -Wextra -Wno-parentheses -Wno-long-long -Wall objs/opusfile_example.o ./libopusfile.a \
+         ./libopusurl.a `pkg-config --libs ogg opus` -o opusfile_example
+mkdir -p .
+cc -g -DOP_ENABLE_ASSERTIONS -fPIC -std=c89 -pedantic -Wextra -Wno-parentheses -Wno-long-long -Wall objs/seeking_example.o ./libopusfile.a \
+         ./libopusurl.a `pkg-config --libs ogg opus` -o seeking_example
+mkdir -p .
+cc -g -DOP_ENABLE_ASSERTIONS -fPIC -std=c89 -pedantic -Wextra -Wno-parentheses -Wno-long-long -Wall objs/tagging_example.o ./libopusfile.a \
+         ./libopusurl.a `pkg-config --libs ogg opus` -o tagging_example
+make: Leaving directory '/home/ys/feedback/uidreczz28Z0d8oUJJr/unix'

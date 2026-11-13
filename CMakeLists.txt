@@ -43,6 +43,7 @@ add_library(opusfile
   "${CMAKE_CURRENT_SOURCE_DIR}/src/internal.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/opusfile.c"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/stream.c"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/tagwrite.c"
 )
 add_library(OpusFile::opusfile ALIAS opusfile)
 set_target_properties(opusfile PROPERTIES
@@ -249,6 +250,39 @@ if(NOT OP_DISABLE_EXAMPLES)
       opusurl
   )
   target_compile_options(seeking_example
+    PRIVATE
+      $<$<C_COMPILER_ID:MSVC>:/wd4267>
+      $<$<C_COMPILER_ID:MSVC>:/wd4244>
+      $<$<C_COMPILER_ID:MSVC>:/wd4090>
+      $<$<C_COMPILER_ID:Clang,GNU>:-std=c89>
+      $<$<C_COMPILER_ID:Clang,GNU>:-pedantic>
+      $<$<C_COMPILER_ID:Clang,GNU>:-Wall>
+      $<$<C_COMPILER_ID:Clang,GNU>:-Wextra>
+      $<$<C_COMPILER_ID:Clang,GNU>:-Wno-parentheses>
+      $<$<C_COMPILER_ID:Clang,GNU>:-Wno-long-long>
+      $<$<C_COMPILER_ID:Clang,GNU>:-fvisibility=hidden>
+  )
+
+  add_executable(tagging_example
+    "${CMAKE_CURRENT_SOURCE_DIR}/examples/tagging_example.c"
+  )
+  add_executable(OpusFile::tagging_example ALIAS tagging_example)
+  if(WIN32)
+    target_sources(tagging_example PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/examples/win32utf8.c"
+      "${CMAKE_CURRENT_SOURCE_DIR}/examples/win32utf8.h"
+    )
+  endif()
+  target_include_directories(tagging_example
+    PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/examples"
+  )
+  target_link_libraries(tagging_example
+    PRIVATE
+      opusfile
+      opusurl
+  )
+  target_compile_options(tagging_example
     PRIVATE
       $<$<C_COMPILER_ID:MSVC>:/wd4267>
       $<$<C_COMPILER_ID:MSVC>:/wd4244>

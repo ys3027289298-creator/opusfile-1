@@ -1,0 +1,21 @@
+PASS: tags serialize
+PASS: tags re-parse
+PASS: tags round-trip identical
+PASS: binary suffix round-trip
+PASS: reject comment without '='
+PASS: reject empty tag name
+PASS: reject control char in tag name
+PASS: reject 0x7F in tag name
+PASS: reject negative comment length
+PASS: picture serialize
+PASS: picture re-parse
+PASS: picture round-trip identical (bytes+type+mime)
+PASS: reject picture type 21
+PASS: reject picture type -1
+PASS: reject control char in mime type
+PASS: reject empty mime type
+PASS: reject invalid UTF-8 description
+PASS: reject truncated UTF-8 description
+PASS: reject data_length>0 with NULL data
+PASS: missing file rejected with OP_EREAD
+20 passed, 0 failed

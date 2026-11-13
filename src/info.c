@@ -416,6 +416,106 @@ const unsigned char *opus_tags_get_binary_suffix(const OpusTags *_tags,
   return len>0?(const unsigned char *)_tags->user_comments[ncomments]:NULL;
 }
 
+/*Check that a tag name contains only printable ASCII characters (0x20-0x7E)
+   other than '=', as required by the Vorbis comment specification.*/
+static int op_is_valid_tag_name(const char *_tag_name,size_t _tag_name_len){
+  size_t i;
+  if(_tag_name_len<1)return 0;
+  for(i=0;i<_tag_name_len;i++){
+    unsigned char c;
+    c=(unsigned char)_tag_name[i];
+    if(c<0x20||c>0x7E||c==0x3D)return 0;
+  }
+  return 1;
+}
+
+int opus_tags_to_packet(const OpusTags *_tags,unsigned char **_packet,
+ size_t *_len){
+  unsigned char *packet;
+  size_t         packet_sz;
+  size_t         pos;
+  int            ncomments;
+  int            suffix_len;
+  int            ci;
+  *_packet=NULL;
+  *_len=0;
+  ncomments=_tags->comments;
+  if(ncomments<0)return OP_EINVAL;
+  /*Compute the total packet size, validating each field as we go.*/
+  packet_sz=8+4+4;
+  if(_tags->vendor!=NULL){
+    size_t vendor_len;
+    vendor_len=strlen(_tags->vendor);
+    if(vendor_len>0xFFFFFFFFU)return OP_EINVAL;
+    packet_sz+=vendor_len;
+    if(packet_sz<vendor_len)return OP_EFAULT;
+  }
+  for(ci=0;ci<ncomments;ci++){
+    const char *comment;
+    const char *eq;
+    size_t      comment_len;
+    if(_tags->user_comments==NULL||_tags->comment_lengths==NULL){
+      return OP_EINVAL;
+    }
+    comment=_tags->user_comments[ci];
+    if(comment==NULL||_tags->comment_lengths[ci]<0)return OP_EINVAL;
+    comment_len=(size_t)_tags->comment_lengths[ci];
+    if(comment_len>0xFFFFFFFFU)return OP_EINVAL;
+    /*Each comment must be of the form "TAG=value" with a valid tag name.*/
+    eq=(const char *)memchr(comment,'=',comment_len);
+    if(eq==NULL)return OP_EINVAL;
+    if(!op_is_valid_tag_name(comment,(size_t)(eq-comment)))return OP_EINVAL;
+    packet_sz+=4+comment_len;
+    if(packet_sz<comment_len)return OP_EFAULT;
+  }
+  /*Append the binary suffix (if any).*/
+  suffix_len=_tags->comment_lengths==NULL?0:
+   _tags->comment_lengths[ncomments];
+  if(suffix_len<0)return OP_EINVAL;
+  if(suffix_len>0&&_tags->user_comments==NULL)return OP_EINVAL;
+  packet_sz+=suffix_len;
+  if(packet_sz<(size_t)suffix_len)return OP_EFAULT;
+  packet=(unsigned char *)_ogg_malloc(sizeof(*packet)*packet_sz);
+  if(OP_UNLIKELY(packet==NULL))return OP_EFAULT;
+  pos=0;
+  memcpy(packet,"OpusTags",8);
+  pos+=8;
+  {
+    size_t vendor_len;
+    vendor_len=_tags->vendor==NULL?0:strlen(_tags->vendor);
+    packet[pos++]=(unsigned char)(vendor_len&0xFF);
+    packet[pos++]=(unsigned char)(vendor_len>>8&0xFF);
+    packet[pos++]=(unsigned char)(vendor_len>>16&0xFF);
+    packet[pos++]=(unsigned char)(vendor_len>>24&0xFF);
+    if(vendor_len>0){
+      memcpy(packet+pos,_tags->vendor,vendor_len);
+      pos+=vendor_len;
+    }
+  }
+  packet[pos++]=(unsigned char)(ncomments&0xFF);
+  packet[pos++]=(unsigned char)(ncomments>>8&0xFF);
+  packet[pos++]=(unsigned char)(ncomments>>16&0xFF);
+  packet[pos++]=(unsigned char)(ncomments>>24&0xFF);
+  for(ci=0;ci<ncomments;ci++){
+    size_t comment_len;
+    comment_len=(size_t)_tags->comment_lengths[ci];
+    packet[pos++]=(unsigned char)(comment_len&0xFF);
+    packet[pos++]=(unsigned char)(comment_len>>8&0xFF);
+    packet[pos++]=(unsigned char)(comment_len>>16&0xFF);
+    packet[pos++]=(unsigned char)(comment_len>>24&0xFF);
+    memcpy(packet+pos,_tags->user_comments[ci],comment_len);
+    pos+=comment_len;
+  }
+  if(suffix_len>0){
+    memcpy(packet+pos,_tags->user_comments[ncomments],(size_t)suffix_len);
+    pos+=(size_t)suffix_len;
+  }
+  OP_ASSERT(pos==packet_sz);
+  *_packet=packet;
+  *_len=packet_sz;
+  return 0;
+}
+
 static int opus_tags_get_gain(const OpusTags *_tags,int *_gain_q8,
  const char *_tag_name,size_t _tag_len){
   char **comments;
@@ -782,6 +882,154 @@ int opus_picture_tag_parse(OpusPictureTag *_pic,const char *_tag){
 
 void opus_picture_tag_init(OpusPictureTag *_pic){
   memset(_pic,0,sizeof(*_pic));
+}
+
+static void op_write_uint32be(unsigned char *_data,opus_uint32 _val){
+  _data[0]=(unsigned char)(_val>>24);
+  _data[1]=(unsigned char)(_val>>16&0xFF);
+  _data[2]=(unsigned char)(_val>>8&0xFF);
+  _data[3]=(unsigned char)(_val&0xFF);
+}
+
+/*Check that a NUL-terminated string is well-formed UTF-8 (RFC 3629).*/
+static int op_is_valid_utf8(const char *_s){
+  const unsigned char *s;
+  s=(const unsigned char *)_s;
+  while(*s!=0){
+    unsigned c;
+    int      n;
+    int      i;
+    c=*s;
+    if(c<0x80){
+      s++;
+      continue;
+    }
+    else if(c<0xC2)return 0;
+    else if(c<0xE0){
+      n=1;
+    }
+    else if(c<0xF0){
+      n=2;
+    }
+    else if(c<0xF5){
+      n=3;
+    }
+    else return 0;
+    for(i=0;i<n;i++){
+      if(s[1+i]<0x80||s[1+i]>=0xC0)return 0;
+    }
+    /*Reject overlong forms, UTF-16 surrogates, and values above U+10FFFF.*/
+    if(n==2){
+      if(c==0xE0&&s[1]<0xA0)return 0;
+      if(c==0xED&&s[1]>=0xA0)return 0;
+    }
+    if(n==3){
+      if(c==0xF0&&s[1]<0x90)return 0;
+      if(c==0xF4&&s[1]>=0x90)return 0;
+    }
+    s+=n+1;
+  }
+  return 1;
+}
+
+int opus_picture_tag_to_string(const OpusPictureTag *_pic,char **_tag){
+  static const char BASE64_TABLE[64]=
+   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  char        *tag;
+  size_t       mime_type_length;
+  size_t       description_length;
+  size_t       data_length;
+  size_t       block_sz;
+  size_t       base64_sz;
+  size_t       tag_sz;
+  size_t       i;
+  size_t       pos;
+  *_tag=NULL;
+  /*The picture type must be one of the values defined by the ID3v2 APIC
+     frame (0-20).*/
+  if(_pic->type<0||_pic->type>20)return OP_EINVAL;
+  if(_pic->mime_type==NULL)return OP_EINVAL;
+  mime_type_length=strlen(_pic->mime_type);
+  if(mime_type_length<1||mime_type_length>0xFFFFFFFFU)return OP_EINVAL;
+  /*The MIME type must be printable ASCII (0x20-0x7E).*/
+  for(i=0;i<mime_type_length;i++){
+    unsigned char c;
+    c=(unsigned char)_pic->mime_type[i];
+    if(c<0x20||c>0x7E)return OP_EINVAL;
+  }
+  if(_pic->description==NULL)return OP_EINVAL;
+  if(!op_is_valid_utf8(_pic->description))return OP_EINVAL;
+  description_length=strlen(_pic->description);
+  if(description_length>0xFFFFFFFFU)return OP_EINVAL;
+  data_length=_pic->data_length;
+  if(data_length>0&&_pic->data==NULL)return OP_EINVAL;
+  /*Assemble the binary picture block.*/
+  block_sz=32+mime_type_length+description_length+data_length;
+  if(block_sz<mime_type_length+description_length+data_length){
+    return OP_EFAULT;
+  }
+  base64_sz=(block_sz+2)/3;
+  if(base64_sz>((size_t)-1-24)/4)return OP_EFAULT;
+  tag_sz=23+4*base64_sz;
+  tag=(char *)_ogg_malloc(sizeof(*tag)*(tag_sz+1));
+  if(OP_UNLIKELY(tag==NULL))return OP_EFAULT;
+  memcpy(tag,"METADATA_BLOCK_PICTURE=",23);
+  {
+    unsigned char *block;
+    block=(unsigned char *)_ogg_malloc(sizeof(*block)*block_sz);
+    if(OP_UNLIKELY(block==NULL)){
+      _ogg_free(tag);
+      return OP_EFAULT;
+    }
+    pos=0;
+    op_write_uint32be(block+pos,(opus_uint32)_pic->type);
+    pos+=4;
+    op_write_uint32be(block+pos,(opus_uint32)mime_type_length);
+    pos+=4;
+    memcpy(block+pos,_pic->mime_type,mime_type_length);
+    pos+=mime_type_length;
+    op_write_uint32be(block+pos,(opus_uint32)description_length);
+    pos+=4;
+    memcpy(block+pos,_pic->description,description_length);
+    pos+=description_length;
+    op_write_uint32be(block+pos,_pic->width);
+    pos+=4;
+    op_write_uint32be(block+pos,_pic->height);
+    pos+=4;
+    op_write_uint32be(block+pos,_pic->depth);
+    pos+=4;
+    op_write_uint32be(block+pos,_pic->colors);
+    pos+=4;
+    op_write_uint32be(block+pos,(opus_uint32)data_length);
+    pos+=4;
+    if(data_length>0){
+      memcpy(block+pos,_pic->data,data_length);
+      pos+=data_length;
+    }
+    OP_ASSERT(pos==block_sz);
+    /*BASE64-encode the block.*/
+    pos=23;
+    for(i=0;i<base64_sz;i++){
+      opus_uint32 value;
+      size_t      off;
+      value=0;
+      off=3*i;
+      value|=(opus_uint32)block[off]<<16;
+      if(off+1<block_sz){
+        value|=(opus_uint32)block[off+1]<<8;
+        if(off+2<block_sz)value|=block[off+2];
+      }
+      tag[pos++]=BASE64_TABLE[value>>18&0x3F];
+      tag[pos++]=BASE64_TABLE[value>>12&0x3F];
+      tag[pos++]=off+1<block_sz?BASE64_TABLE[value>>6&0x3F]:'=';
+      tag[pos++]=off+2<block_sz?BASE64_TABLE[value&0x3F]:'=';
+    }
+    _ogg_free(block);
+  }
+  OP_ASSERT(pos==tag_sz);
+  tag[tag_sz]='\0';
+  *_tag=tag;
+  return 0;
 }
 
 void opus_picture_tag_clear(OpusPictureTag *_pic){

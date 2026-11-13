@@ -1,0 +1,32 @@
+== 1. build (unix/Makefile) ==
+PASS: library and examples build
+PASS: zero compiler warnings
+== 2. unit checks (serialization round-trip + rejection) ==
+PASS: unit test builds
+PASS: unit test: 20/20 checks
+== 3. make tiny assets ==
+PASS: make 1s opus file (3903 bytes)
+PASS: make 32x32 png cover (120 bytes)
+== 4. tag + cover round-trip ==
+PASS: write tags and cover
+PASS: read tags back
+PASS: TITLE round-trips
+PASS: ARTIST round-trips
+PASS: cover mime type preserved
+PASS: cover bytes identical after round-trip
+PASS: audio data untouched by tag write
+== 5. idempotent re-write ==
+PASS: second write yields identical tags
+== 6. invalid input is rejected ==
+PASS: comment without '=' -> OP_EINVAL(-131)
+PASS: control char in tag name -> OP_EINVAL(-131)
+PASS: picture type 99 -> OP_EINVAL(-131)
+PASS: read-only file -> OP_EREAD(-128)
+PASS: read-only file left untouched
+PASS: non-opus file -> OP_ENOTFORMAT(-132)
+== 7. old interface regression ==
+PASS: opusfile_example still decodes tagged file
+PASS: decoded length unchanged (1.000s)
+PASS: seeking_example still works
+
+RESULT: 23 passed, 0 failed

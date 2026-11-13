@@ -27,6 +27,7 @@ doc/html
 doc/latex
 examples/opusfile_example
 examples/seeking_example
+examples/tagging_example
 install-sh
 libopusfile-*.tar.*
 libtool
@@ -47,4 +48,5 @@ test-driver
 unix/objs
 unix/opusfile_example
 unix/seeking_example
+unix/tagging_example
 build

@@ -11,7 +11,8 @@ lib_LTLIBRARIES = libopusfile.la libopusurl.la
 libopusfile_la_SOURCES = \
 	src/info.c \
 	src/internal.c src/internal.h \
-	src/opusfile.c src/stream.c
+	src/opusfile.c src/stream.c \
+	src/tagwrite.c
 libopusfile_la_LIBADD = $(DEPS_LIBS) $(lrintf_lib)
 libopusfile_la_LDFLAGS = -no-undefined \
  -version-info @OP_LT_CURRENT@:@OP_LT_REVISION@:@OP_LT_AGE@
@@ -23,13 +24,16 @@ libopusurl_la_LDFLAGS = -no-undefined \
  -version-info @OP_LT_CURRENT@:@OP_LT_REVISION@:@OP_LT_AGE@
 
 if OP_ENABLE_EXAMPLES
-noinst_PROGRAMS = examples/opusfile_example examples/seeking_example
+noinst_PROGRAMS = examples/opusfile_example examples/seeking_example \
+	examples/tagging_example
 endif
 
 examples_opusfile_example_SOURCES = examples/opusfile_example.c
 examples_seeking_example_SOURCES = examples/seeking_example.c
+examples_tagging_example_SOURCES = examples/tagging_example.c
 examples_opusfile_example_LDADD = libopusurl.la libopusfile.la
 examples_seeking_example_LDADD = libopusurl.la libopusfile.la
+examples_tagging_example_LDADD = libopusurl.la libopusfile.la
 
 if OP_WIN32
 if OP_ENABLE_HTTP
@@ -38,6 +42,7 @@ libopusurl_la_LIBADD += -lws2_32 -lcrypt32
 endif
 examples_opusfile_example_SOURCES += examples/win32utf8.c examples/win32utf8.h
 examples_seeking_example_SOURCES += examples/win32utf8.c examples/win32utf8.h
+examples_tagging_example_SOURCES += examples/win32utf8.c examples/win32utf8.h
 endif
 
 pkgconfigdir = $(libdir)/pkgconfig

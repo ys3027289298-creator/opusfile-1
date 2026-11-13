@@ -462,6 +462,33 @@ ogg_int64_t opus_granule_sample(const OpusHead *_head,ogg_int64_t _gp)
 OP_WARN_UNUSED_RESULT int opus_tags_parse(OpusTags *_tags,
  const unsigned char *_data,size_t _len) OP_ARG_NONNULL(2);
 
+/**Serializes an #OpusTags structure into the contents of an Ogg Opus
+    'comment' header packet.
+   This is the inverse of opus_tags_parse(): parsing the returned packet with
+    opus_tags_parse() yields a copy of the original tags.
+   The packet contents include the "OpusTags" signature and any binary suffix
+    set with opus_tags_set_binary_suffix().
+   \param       _tags   An initialized #OpusTags structure.
+                        Each comment must be of the form "TAG=value", with a
+                         non-empty tag name containing only printable ASCII
+                         characters (0x20-0x7E) other than '='.
+   \param[out]  _packet Returns a newly allocated buffer containing the
+                         serialized packet.
+                         This should be freed with _ogg_free() when no longer
+                          needed.
+                         This is set to <code>NULL</code> on error.
+   \param[out]  _len    Returns the number of bytes in the serialized packet.
+                         This is set to 0 on error.
+   \retval 0          Success.
+   \retval #OP_EINVAL A tag name was empty or contained characters outside
+                       the printable ASCII range 0x20-0x7E (excluding '='),
+                       a comment did not contain a '=' character, or a field
+                       was too long to be represented in the packet format.
+   \retval #OP_EFAULT An internal memory allocation failed.*/
+OP_WARN_UNUSED_RESULT int opus_tags_to_packet(const OpusTags *_tags,
+ unsigned char **_packet,size_t *_len)
+ OP_ARG_NONNULL(1) OP_ARG_NONNULL(2) OP_ARG_NONNULL(3);
+
 /**Performs a deep copy of an #OpusTags structure.
    \param _dst The #OpusTags structure to copy into.
                If this function fails, the contents of this structure remain
@@ -658,6 +685,33 @@ int opus_tagncompare(const char *_tag_name,int _tag_len,const char *_comment);
 OP_WARN_UNUSED_RESULT int opus_picture_tag_parse(OpusPictureTag *_pic,
  const char *_tag) OP_ARG_NONNULL(1) OP_ARG_NONNULL(2);
 
+/**Serializes an #OpusPictureTag structure into a METADATA_BLOCK_PICTURE tag.
+   This is the inverse of opus_picture_tag_parse(): parsing the returned tag
+    with opus_picture_tag_parse() yields a picture tag with the same type,
+    MIME type, description, image parameters, and image data.
+   The image data is preserved byte-for-byte, and the MIME type is preserved
+    verbatim.
+   \param      _pic An initialized #OpusPictureTag structure.
+                     The picture type must lie in the range 0-20, the MIME
+                      type must be non-empty and contain only printable ASCII
+                      characters (0x20-0x7E), and the description must be
+                      valid UTF-8.
+   \param[out] _tag Returns a newly allocated, NUL-terminated string of the
+                     form "METADATA_BLOCK_PICTURE=...".
+                     This should be freed with _ogg_free() when no longer
+                      needed.
+                     This is set to <code>NULL</code> on error.
+   \retval 0          Success.
+   \retval #OP_EINVAL The picture type was outside the range 0-20, the MIME
+                       type was empty or contained characters outside the
+                       printable ASCII range 0x20-0x7E, the description was
+                       not valid UTF-8, or a field was too long to be
+                       represented in the tag format.
+   \retval #OP_EFAULT An internal memory allocation failed.*/
+OP_WARN_UNUSED_RESULT int opus_picture_tag_to_string(
+ const OpusPictureTag *_pic,char **_tag)
+ OP_ARG_NONNULL(1) OP_ARG_NONNULL(2);
+
 /**Initializes an #OpusPictureTag structure.
    This should be called on a freshly allocated #OpusPictureTag structure
     before attempting to use it.
@@ -670,6 +724,31 @@ void opus_picture_tag_init(OpusPictureTag *_pic) OP_ARG_NONNULL(1);
    It will free all memory used by the structure members.
    \param _pic The #OpusPictureTag structure to clear.*/
 void opus_picture_tag_clear(OpusPictureTag *_pic) OP_ARG_NONNULL(1);
+
+/**Replaces the 'comment' header (tags and cover art) of an Ogg Opus file.
+   The file is rewritten in place: the OpusTags header of the first link is
+    replaced by a header serialized from \a _tags (see opus_tags_to_packet()),
+    and all audio data is preserved unchanged.
+   The file must be seekable and writable.
+   This function does not modify any stream opened for reading with
+    op_open_file() and friends, and does not affect chained links beyond the
+    first one.
+   \param _path The path to the Ogg Opus file to modify.
+   \param _tags An initialized #OpusTags structure containing the new tags.
+                This must satisfy the same requirements as
+                 opus_tags_to_packet().
+   \retval 0              Success.
+   \retval #OP_EINVAL     The tags contained a field that was empty, too
+                           long, or otherwise not representable in the
+                           packet format.
+   \retval #OP_EREAD      The file could not be opened, read, written, or
+                           replaced (e.g., it was read-only).
+   \retval #OP_ENOTFORMAT The file was not recognized as an Ogg Opus file.
+   \retval #OP_EBADHEADER The file's headers violate the Ogg Opus
+                           specification.
+   \retval #OP_EFAULT     An internal memory allocation failed.*/
+OP_WARN_UNUSED_RESULT int op_write_tags(const char *_path,
+ const OpusTags *_tags) OP_ARG_NONNULL(1) OP_ARG_NONNULL(2);
 
 /**@}*/
 

@@ -1,0 +1,16 @@
+Total number of links: 1
+Total duration: 1.000s (48000 samples @ 48 kHz)
+Total size: 4.09k
+Decoding link 0:                          
+  Channels: 1
+  Duration: 1.000s (48000 samples @ 48 kHz)
+  Size: 4.09k
+  Original sampling rate: 48000 Hz
+  Encoded by: Lavf61.1.100
+  encoder=Lavc61.3.100 libopus
+  TITLE=Round Trip
+  ARTIST=opusfile
+  METADATA_BLOCK_PICTURE=3|image/png||32x32x24|<120 bytes of image data>
+
+ 3.95k  0s  (52.7 kbps)                     4.09k  1s  (29.2 kbps)                    
+Done: played 1.000s (48000 samples @ 48 kHz).
